@@ -1,4 +1,6 @@
-# Himalayan Expedition Analytics
+# Above the Clouds: A Century of Himalayan Expeditions
+
+### An End-to-End SQL and Tableau Analytics Case Study
 
 ## Project Overview
 
