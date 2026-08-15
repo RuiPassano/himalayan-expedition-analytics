@@ -1,274 +1,163 @@
-============================================================
-RAW EXPEDITIONS DATA PROFILE
-============================================================
+# RAW Expeditions Data Profile
 
-Table: raw_expeditions
-Database: above_the_clouds
+## Objective
 
-Purpose:
-Profile the raw expedition-level dataset before transformation.
-The objective is to identify duplicate identifiers, missing values,
-categorical inconsistencies, numerical anomalies, and other potential
-data-quality issues while preserving the original source data.
+Profile the `raw_expeditions` table before any cleaning or transformation is performed.
 
+---
 
-------------------------------------------------------------
-1. RECORD COUNT AND IDENTIFIER UNIQUENESS
-------------------------------------------------------------
+## Dataset Summary
 
-Total expedition records: 10,364
-Unique expedition IDs: 10,363
+| Metric | Value |
+|---|---:|
+| Rows | 10,364 |
+| Columns | 16 |
+| Unique Expedition IDs | 10,363 |
 
-Finding:
-One expedition ID occurs more than once in the dataset.
+---
 
-Duplicate expedition ID:
-KANG10101
+## Key Findings
 
-Occurrences:
-2
+### Record Integrity
 
+- 10,364 expedition records were imported successfully.
+- 10,363 unique `expedition_id` values were identified.
+- One expedition identifier occurs twice: `KANG10101`.
+- The two `KANG10101` records represent different expeditions rather than duplicate rows.
 
-------------------------------------------------------------
-2. DUPLICATE EXPEDITION ID INVESTIGATION
-------------------------------------------------------------
+The duplicated records differ across several attributes, including year, outcome, dates, highpoint, expedition size, oxygen use, and trekking agency information.
 
-The two records associated with expedition ID KANG10101 were compared
-at the record level.
+The identifier collision should therefore be addressed during transformation without deleting either expedition record.
 
-The records differ across multiple attributes, including:
+---
 
-- Year
-- Expedition dates
-- Expedition outcome
-- Highpoint
-- Expedition size
-- Oxygen usage
-- Trekking agency information
+### Missing Values
 
-Finding:
-The two rows do not represent duplicated expedition records.
+| Column | Missing (`NA`) |
+|---|---:|
+| basecamp_date | 1,095 |
+| highpoint_date | 650 |
+| termination_date | 2,380 |
+| termination_reason | 0 |
+| highpoint_metres | 414 |
+| trekking_agency | 1,580 |
 
-Instead, KANG10101 has been assigned to two different expedition
-observations in the source dataset.
+Missing values are concentrated primarily in historical and logistical fields rather than expedition outcomes.
 
-Decision:
-Do not remove either record from the RAW layer.
+Every expedition has a recorded `termination_reason`, providing complete outcome coverage.
 
-The duplicated identifier should be documented as a source-system
-identifier issue and addressed during transformation so that each
-cleaned expedition record can be uniquely identified.
+Missing trekking-agency information is plausible for historical, private, scientific, military, or otherwise non-commercial expeditions.
 
+Missing dates and highpoint information should be preserved as unknown rather than imputed without supporting evidence.
 
-------------------------------------------------------------
-3. MISSING VALUE PROFILE
-------------------------------------------------------------
+---
 
-Missing values are represented as 'NA' in the RAW dataset.
+### Expedition Outcomes
 
-Missing values identified:
+Fifteen standardized termination-reason categories were identified.
 
-basecamp_date:        1,095
-highpoint_date:         650
-termination_date:     2,380
-termination_reason:       0
-highpoint_metres:       414
-trekking_agency:       1,580
+| Termination Reason | Expeditions |
+|---|---:|
+| Success (main peak) | 5,581 |
+| Bad weather (storms, high winds) | 1,307 |
+| Bad conditions (deep snow, avalanching, falling ice) | 1,097 |
+| Illness, AMS, exhaustion, or frostbite | 458 |
+| Route technically too difficult, lack of experience | 438 |
+| Other | 320 |
+| Accident (death or serious injury) | 299 |
+| Did not attempt climb | 233 |
+| Lack (or loss) of supplies or equipment | 220 |
+| Success (subpeak) | 126 |
+| Unknown | 96 |
+| Lack of time | 93 |
+| Did not reach base camp | 64 |
+| Success (claimed) | 20 |
+| Attempt rumoured | 12 |
 
-Finding:
-Missing values are concentrated primarily in historical and logistical
-fields rather than expedition outcome information.
+`Success (main peak)` is the most common recorded expedition outcome.
 
-Every expedition has a recorded termination reason.
+Among unsuccessful expeditions, weather and mountain conditions are the largest termination categories.
 
-Missing trekking-agency information is plausible, particularly for
-historical expeditions.
+Termination-reason values appear consistently standardized, with no obvious spelling or capitalization inconsistencies identified.
 
-Missing expedition dates and highpoint information may reflect events
-that did not occur or information that was not historically recorded.
+---
 
-Decision:
-Do not infer or manufacture missing information.
+### Expedition Size and Casualty Validation
 
-During transformation, source 'NA' values should be converted to SQL
-NULL where appropriate.
+| Metric | Value |
+|---|---:|
+| Minimum Members | 0 |
+| Maximum Members | 99 |
+| Average Members | 5.95 |
+| Minimum Member Deaths | 0 |
+| Maximum Member Deaths | 10 |
+| Minimum Hired Staff | 0 |
+| Maximum Hired Staff | 99 |
+| Minimum Hired Staff Deaths | 0 |
+| Maximum Hired Staff Deaths | 11 |
 
+The observed numerical ranges do not reveal obvious impossible values.
 
-------------------------------------------------------------
-4. TERMINATION REASON PROFILE
-------------------------------------------------------------
+Expedition sizes vary considerably, which is reasonable given the dataset includes different expedition types and historical periods.
 
-Fifteen standardized expedition termination categories were identified.
+---
 
-Termination reason distribution:
+### Supplemental Oxygen Usage
 
-Success (main peak):                               5,581
-Bad weather (storms, high winds):                  1,307
-Bad conditions (deep snow, avalanching, etc.):     1,097
-Illness, AMS, exhaustion, or frostbite:               458
-Route technically too difficult / lack experience:    438
-Other:                                                320
-Accident (death or serious injury):                   299
-Did not attempt climb:                                233
-Lack/loss of supplies or equipment:                   220
-Success (subpeak):                                    126
-Unknown:                                               96
-Lack of time:                                          93
-Did not reach base camp:                               64
-Success (claimed):                                     20
-Attempt rumored:                                       12
+| Oxygen Used | Expeditions |
+|---|---:|
+| FALSE | 7,452 |
+| TRUE | 2,912 |
 
-Finding:
-Success on the main peak is the most common expedition outcome.
+Only standardized `TRUE` and `FALSE` values are present.
 
-Weather and mountain conditions are the leading recorded causes of
-unsuccessful expeditions.
+No missing or inconsistent oxygen-use categories were identified.
 
-Termination-reason categories appear consistently standardized.
+The field is suitable for direct conversion to a boolean-compatible analytical field during transformation.
 
-No obvious spelling, capitalization, or formatting inconsistencies were
-identified.
+---
 
-Decision:
-Retain the existing termination-reason categories.
+### Duplicate Expedition Identifier
 
-No major categorical cleaning is required for this field.
+The duplicated identifier `KANG10101` appears in two distinct records:
 
+- Kangchenjunga expedition in **1910**
+- Kangchenjunga expedition in **2010**
 
-------------------------------------------------------------
-5. EXPEDITION SIZE AND CASUALTY RANGE VALIDATION
-------------------------------------------------------------
+The records differ in year, outcome, expedition details, oxygen use, and other attributes.
 
-Expedition members:
+This confirms that the issue is a **source-system identifier collision**, not a duplicated observation.
 
-Minimum members: 0
-Maximum members: 99
-Average members: 5.95
+Both records should be retained.
 
-Member deaths:
+---
 
-Minimum member deaths: 0
-Maximum member deaths: 10
+## Transformation Requirements
 
-Hired staff:
+The profiling process identified the following requirements for the cleaned analytical layer:
 
-Minimum hired staff: 0
-Maximum hired staff: 99
+- Preserve all 10,364 expedition records.
+- Resolve the duplicated `KANG10101` identifier without deleting either record.
+- Convert source `NA` placeholders to SQL `NULL` where appropriate.
+- Convert date fields from text to proper SQL `DATE` values.
+- Convert numerical text fields to numeric data types.
+- Convert `TRUE` / `FALSE` text values to boolean-compatible analytical values.
+- Preserve legitimate historical missingness rather than imputing unsupported values.
+- Retain the existing standardized termination-reason categories.
+- Standardize trekking-agency names separately where meaningful variations exist.
 
-Hired staff deaths:
+---
 
-Minimum hired staff deaths: 0
-Maximum hired staff deaths: 11
+## Conclusion
 
-Finding:
-The numerical ranges do not reveal obvious impossible or erroneous
-values.
+The `raw_expeditions` table demonstrates good overall data quality.
 
-Expedition sizes vary substantially, which is plausible given the
-dataset includes different expedition types and historical periods.
+The principal integrity issue is the duplicated expedition identifier `KANG10101`, which represents two different expeditions rather than duplicate records.
 
-Decision:
-Retain the source numerical values.
+Missing values are concentrated mainly in historical and logistical fields and should generally be preserved as unknown information.
 
-During transformation, these fields should be converted from RAW text
-representation to appropriate numeric data types.
+Termination outcomes and oxygen-use values are consistently standardized, while numerical expedition and casualty fields contain no obvious invalid ranges.
 
-
-------------------------------------------------------------
-6. SUPPLEMENTAL OXYGEN USAGE
-------------------------------------------------------------
-
-oxygen_used = FALSE: 7,452 expeditions
-oxygen_used = TRUE:  2,912 expeditions
-
-Total: 10,364 expeditions
-
-Finding:
-All expedition records contain standardized TRUE/FALSE oxygen-use
-values.
-
-No missing or unexpected oxygen-use categories were identified.
-
-Most expeditions in the dataset did not record supplemental oxygen use.
-
-Decision:
-Retain the oxygen-use information.
-
-During transformation, the RAW TRUE/FALSE text representation should
-be converted to an appropriate boolean-compatible analytical field.
-
-
-------------------------------------------------------------
-7. DATA QUALITY ASSESSMENT
-------------------------------------------------------------
-
-The raw_expeditions table is generally well structured and suitable
-for transformation.
-
-The principal identifier issue is expedition ID KANG10101, which occurs
-twice.
-
-Record-level investigation established that the two KANG10101 rows
-represent different expedition observations rather than duplicated
-records.
-
-Neither record should therefore be deleted.
-
-Missing values are concentrated mainly in historical and logistical
-fields and do not provide sufficient evidence of data-entry errors.
-
-Termination reasons are complete and consistently categorized.
-
-Oxygen-use values are standardized.
-
-Expedition-size and casualty fields contain no obvious invalid numerical
-ranges.
-
-
-------------------------------------------------------------
-8. TRANSFORMATION REQUIREMENTS
-------------------------------------------------------------
-
-The profiling process identified the following requirements for the
-cleaning and transformation phase:
-
-1. Preserve all 10,364 expedition records.
-
-2. Resolve the duplicated KANG10101 identifier in the analytical layer
-   without deleting either expedition record.
-
-3. Convert source 'NA' placeholders to SQL NULL where appropriate.
-
-4. Convert expedition date fields from text to proper DATE data types.
-
-5. Convert numerical fields stored as text to appropriate numeric data
-   types.
-
-6. Convert TRUE/FALSE text fields to appropriate boolean-compatible
-   analytical values.
-
-7. Preserve legitimate historical missingness rather than imputing
-   unsupported information.
-
-8. Retain the existing standardized termination-reason categories.
-
-
-------------------------------------------------------------
-9. FINAL PROFILING CONCLUSION
-------------------------------------------------------------
-
-The raw_expeditions dataset does not require destructive cleaning in
-the RAW layer.
-
-The source data should remain unchanged.
-
-Profiling identified one duplicated source identifier, several expected
-patterns of historical missingness, and fields requiring data-type
-conversion.
-
-These findings will be handled in the transformation layer while
-maintaining the RAW tables as an untouched representation of the
-original source data.
-
+The dataset is suitable for transformation into the cleaned analytical layer.
 RAW expedition profiling is complete.
 ============================================================
