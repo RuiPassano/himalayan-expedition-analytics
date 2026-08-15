@@ -1,103 +1,293 @@
-# Data Quality Audit — First Iteration
+# Data Quality Audit
 
 ## Project
+
 **Above the Clouds: A Century of Himalayan Expeditions**
 
-## Scope
-This audit profiles the three FIRST ITERATION CSV files currently used for the project. It is a diagnostic step only: no source data was modified.
+## Objective
+
+Consolidate the findings from profiling the three RAW SQL tables before any cleaning or transformation is performed.
+
+This audit represents the conclusion of the RAW data assessment phase. No source records were modified during profiling.
+
+---
 
 ## Dataset Summary
 
-| Dataset | Rows | Columns | Exact Duplicate Rows |
-|---|---:|---:|---:|
-| Expeditions | 10,364 | 13 | 0 |
-| Members | 76,519 | 15 | 0 |
-| Peaks | 468 | 5 | 0 |
+| Dataset | Rows | Primary Identifier Status |
+|---|---:|---|
+| `raw_peaks` | 468 | Peak identifiers unique |
+| `raw_expeditions` | 10,364 | One identifier collision |
+| `raw_members` | 76,519 | One identifier collision |
+
+The three RAW tables were successfully loaded and profiled independently before transformation.
+
+---
 
 ## Key Findings
 
-### 1. Exact duplicate rows are not a problem
-None of the three datasets contains an exact duplicate row.
+### 1. RAW Data Must Remain Unchanged
 
-### 2. One identifier collision requires correction
-`expedition_id = KANG10101` appears twice in the Expeditions dataset: once for a 1910 Kangchenjunga record and once for a 2010 Kangchenjunga record.
+The RAW tables represent the original source data and should remain unchanged throughout the project.
 
-The resulting `member_id = KANG10101-01` also appears twice in Members, once in 1910 and once in 2010.
+Cleaning, type conversion, standardization, identifier correction, and analytical transformations should occur in separate cleaned or transformed tables.
 
-This is not an exact duplicate. It is a key collision and should be resolved before primary-key constraints or joins are finalized.
+This preserves lineage and allows every transformation to be reproduced and audited.
 
-### 3. Peak IDs should be restored from RAW data
-The FIRST ITERATION datasets rely on `peak_name` for peak relationships. The RAW data contains `peak_id`, which is a more appropriate stable relational key.
+---
 
-Recommendation: retain `peak_id` in the SQL staging and cleaned tables, even if it is hidden from the final Tableau presentation.
+### 2. Expedition Identifier Collision
 
-### 4. Missingness is generally manageable
-Expeditions:
-- `trekking_agency`: ~16.5% missing
-- `highpoint_date`: ~6.3% missing
-- `highpoint_metres`: ~4.0% missing
-- `peak_name`: one missing value
+The `raw_expeditions` table contains 10,364 records but only 10,363 unique `expedition_id` values.
 
-Members:
-- `age`: ~4.6% missing
-- `expedition_role`: ~0.03% missing
-- `peak_name`: ~0.02% missing
-- `citizenship`: ~0.01% missing
-- `sex`: two missing values
+The duplicated identifier is:
 
-Peaks:
-- `first_ascent_year`: ~28.2% missing
-- `first_ascent_country`: ~28.2% missing
+`KANG10101`
 
-These nulls should not be deleted indiscriminately. Their treatment should depend on the analysis being performed.
+It occurs twice and represents two different Kangchenjunga expeditions:
 
-### 5. Referential integrity is strong
-Every expedition identifier referenced by Members exists in Expeditions.
+- 1910
+- 2010
 
-Every non-null peak name referenced by Expeditions and Members exists in Peaks.
+The records differ across multiple attributes and therefore do not represent duplicate observations.
 
-There are 13 expedition records with no corresponding member records. These should be retained pending interpretation rather than automatically deleted.
+This is a source-system identifier collision.
 
-### 6. A malformed first-ascent year exists
-Sharphu II has `first_ascent_year = 201`, which is almost certainly a malformed four-digit year and requires verification before correction.
+Both expedition records must be preserved, while the identifier collision must be resolved in the transformed analytical layer.
 
-### 7. Possible sentinel values exist
-One expedition records `members = 99`, and three records contain `hired_staff = 99`.
+---
 
-These values should be investigated before treating them as literal counts. They may represent unknown or unavailable values in the source system.
+### 3. Member Identifier Collision
 
-### 8. Date/year mismatches require interpretation
-Ninety-seven non-null `highpoint_date` values have a calendar year different from the expedition `year`.
+The `raw_members` table contains 76,519 records but only 76,518 unique `member_id` values.
 
-This does not automatically mean the dates are wrong: winter expeditions can cross calendar years. These records should be evaluated using season and source conventions before any correction.
+The duplicated identifier is:
 
-### 9. Death counts reconcile correctly across tables
-After separating hired and non-hired Members records, expedition-level `member_deaths` and `hired_staff_deaths` reconcile with the member-level death flags for all normal expedition IDs.
+`KANG10101-01`
 
-This is a strong consistency check between the two datasets.
+The two records correspond to the duplicated `KANG10101` expedition identifier.
 
-### 10. Staff counts do not always equal member-level hired records
-For many expeditions, `hired_staff` in Expeditions differs from the count of rows where `hired = TRUE` in Members.
+They differ in year, age, citizenship, and other expedition context and therefore represent separate member observations.
 
-This suggests the fields do not represent exactly the same population or that hired-staff member records are incomplete for some expeditions. They should not be assumed interchangeable.
+The member identifier collision is a downstream consequence of the expedition identifier collision.
 
-### 11. Categorical standardization is still needed
-The expedition dataset contains approximately 827 non-null trekking-agency names. Simple case/whitespace normalization only collapses a very small number of values, indicating that most duplication is semantic (for example permits, alternate wording, or agency combinations), not just capitalization.
+Both records must be preserved.
 
-A dedicated mapping table is therefore justified.
+---
 
-## Preliminary Cleaning Decisions
+### 4. Referential Integrity Is Strong
 
-1. Preserve all RAW files unchanged.
-2. Restore `peak_id` from RAW data to the SQL pipeline.
-3. Resolve the `KANG10101` identifier collision explicitly and document the correction.
-4. Do not drop rows solely because a nullable analytical field is missing.
-5. Investigate sentinel-like values such as `99` before aggregation.
-6. Validate suspicious historical values against source documentation before changing them.
-7. Build a trekking-agency mapping table rather than using broad string replacement rules.
-8. Convert date strings to proper SQL `DATE` values in the cleaned layer.
-9. Preserve `Unknown` as a valid source category unless evidence supports a more precise value.
-10. Maintain separate staging and cleaned tables so all transformations remain reproducible.
+All member records successfully match an expedition through `expedition_id`.
+
+| Integrity Check | Records |
+|---|---:|
+| Orphaned member records | 0 |
+
+No member records reference a nonexistent expedition.
+
+This provides strong evidence that the member and expedition datasets maintain reliable relational coverage.
+
+---
+
+### 5. Missing Values Are Primarily Contextual
+
+Missing values occur throughout the RAW datasets, but many represent legitimate historical or event-driven missingness rather than data-quality failures.
+
+Examples include:
+
+- Missing first-ascent information for peaks without documented ascent information.
+- Missing expedition dates for historical expeditions.
+- Missing trekking-agency information where no agency was recorded.
+- Missing member highpoints where no measurable individual highpoint was recorded.
+- Missing death information for members who did not die.
+- Missing injury information for members who were not injured.
+
+Missing values should therefore not be removed or imputed indiscriminately.
+
+Source `NA` placeholders should be converted to SQL `NULL` in the cleaned analytical layer where appropriate.
+
+---
+
+### 6. Expedition Outcomes Are Well Standardized
+
+The `raw_expeditions` table contains 15 standardized termination-reason categories.
+
+`Success (main peak)` is the most common outcome, representing 5,581 expeditions.
+
+Weather and mountain conditions are the leading recorded causes of unsuccessful expeditions.
+
+No obvious spelling or formatting inconsistencies were identified in the termination-reason field.
+
+The existing categories can therefore largely be retained during transformation.
+
+---
+
+### 7. Boolean Fields Are Consistently Standardized
+
+Boolean-style source fields use standardized `TRUE` and `FALSE` values.
+
+This includes fields such as:
+
+- `success`
+- `hired`
+- `injured`
+- `oxygen_used`
+- `solo`
+- `died`
+
+No unexpected categorical values were identified during profiling.
+
+These fields can be converted to boolean-compatible analytical data types during transformation.
+
+---
+
+### 8. Death Data Is Internally Consistent
+
+Member-level death fields demonstrate strong internal consistency.
+
+- Members marked `died = TRUE` have corresponding death-cause information.
+- Members not marked as deceased do not contain inappropriate death-cause values.
+
+No contradictory death-status records were identified during member profiling.
+
+---
+
+### 9. One Injury Record Is Incomplete
+
+One member is marked as injured but has no recorded injury type.
+
+The affected record is:
+
+- Member ID: `PUMO96105-03`
+- Expedition ID: `PUMO96105`
+- Peak: Pumori
+- Year: 1996
+- Age: 32
+- Citizenship: Czech Republic
+- Expedition role: Climber
+- Injured: TRUE
+- Injury type: `NA`
+- Injury height: `NA`
+
+The source confirms that an injury occurred but provides insufficient information to determine the injury type or height.
+
+These missing values should remain unknown rather than being inferred.
+
+---
+
+### 10. Unusually Young Member Ages Require Caution
+
+The recorded member-age range is:
+
+| Metric | Age |
+|---|---:|
+| Minimum | 7 |
+| Maximum | 85 |
+| Average | 37.33 |
+
+Several unusually young members were identified.
+
+The minimum-age record represents a 7-year-old member associated with a 1984 Manaslu expedition.
+
+Additional records between ages 12 and 14 occur across different expeditions, peaks, years, citizenships, roles, and outcomes.
+
+The available profiling evidence does not establish that these values are data-entry errors.
+
+They should therefore remain unchanged unless authoritative external evidence supports correction.
+
+---
+
+### 11. Expedition Roles Contain Significant Granularity
+
+The member dataset contains more than 100 expedition-role descriptions.
+
+Core roles such as `Climber`, `H-A Worker`, `Leader`, and `Exp Doctor` are consistently represented, but numerous specialized role variants also exist.
+
+Examples include:
+
+- `Climber (S)`
+- `Climber (Group A)`
+- `Support Member`
+- `Support Climber`
+- `Film Crew`
+- `Climbing Guide`
+- `BC Staff`
+- `Medical Officer`
+- `Research Doctor`
+
+These appear primarily to represent legitimate operational classifications rather than simple formatting errors.
+
+The original values should be preserved.
+
+A higher-level role classification may be created separately for analytical reporting.
+
+---
+
+### 12. Numerical Ranges Require Context Rather Than Automatic Correction
+
+Expedition profiling identified:
+
+| Metric | Minimum | Maximum |
+|---|---:|---:|
+| Members | 0 | 99 |
+| Member Deaths | 0 | 10 |
+| Hired Staff | 0 | 99 |
+| Hired Staff Deaths | 0 | 11 |
+
+These values do not, by themselves, establish data-quality errors.
+
+Values such as `99` should therefore not automatically be treated as sentinel values without supporting source documentation.
+
+RAW values must remain unchanged unless evidence supports a correction.
+
+---
+
+### 13. Peak Historical Data Requires Selective Validation
+
+The peak dataset contains historical fields with substantial legitimate missingness, particularly first-ascent information.
+
+Historical anomalies identified during peak profiling should be handled individually rather than through broad automated corrections.
+
+Where a value appears malformed or historically implausible, it should be validated against authoritative source documentation before modification.
+
+---
+
+## Cleaning and Transformation Decisions
+
+Based on the completed RAW profiling, the following rules will govern the transformation phase:
+
+1. Preserve all RAW tables unchanged.
+2. Preserve all legitimate source records unless a documented transformation specifically requires otherwise.
+3. Resolve the `KANG10101` expedition identifier collision without deleting either expedition.
+4. Resolve the corresponding `KANG10101-01` member identifier collision.
+5. Convert source `NA` placeholders to SQL `NULL` where appropriate.
+6. Convert numerical text fields to appropriate numeric SQL data types.
+7. Convert date strings to proper SQL `DATE` values where valid.
+8. Convert standardized `TRUE` / `FALSE` fields to boolean-compatible analytical values.
+9. Do not impute historical or event-driven missing values without supporting evidence.
+10. Preserve suspicious but unverified source values until they can be validated.
+11. Preserve detailed expedition-role values while allowing a separate analytical role classification.
+12. Maintain referential integrity between peaks, expeditions, and members throughout transformation.
+13. Document every material cleaning decision so the analytical dataset remains reproducible.
+
+---
+
+## Overall Assessment
+
+The RAW Himalayan expedition datasets demonstrate strong overall structural and relational quality.
+
+The most significant confirmed integrity issue is the `KANG10101` expedition identifier collision and its corresponding `KANG10101-01` member identifier collision.
+
+Most missing values are explainable by historical coverage, expedition context, or event-driven fields rather than widespread data corruption.
+
+Boolean fields and expedition outcomes are consistently standardized, member-to-expedition referential integrity is complete, and no evidence currently supports broad deletion or aggressive imputation of RAW records.
+
+The datasets are suitable to proceed to the cleaning and transformation phase.
+
+---
 
 ## Next Step
-Build the SQL database from the RAW datasets using staging tables, retain stable identifiers, and reproduce the FIRST ITERATION column-selection decisions in SQL rather than relying on manually edited CSV files.
+
+Design and build the cleaned SQL layer using the findings documented during RAW profiling.
+
+The transformation process should begin with data-type conversion and identifier resolution while preserving the RAW tables as the immutable source layer.
