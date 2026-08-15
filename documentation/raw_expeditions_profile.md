@@ -156,8 +156,5 @@ The principal integrity issue is the duplicated expedition identifier `KANG10101
 
 Missing values are concentrated mainly in historical and logistical fields and should generally be preserved as unknown information.
 
-Termination outcomes and oxygen-use values are consistently standardized, while numerical expedition and casualty fields contain no obvious invalid ranges.
-
-The dataset is suitable for transformation into the cleaned analytical layer.
-RAW expedition profiling is complete.
+Termination outcomes and oxygen-use values are consistently standardized, while numerical expedition and casualty fields contain no obvious invalid ranges. The dataset is suitable for transformation into the cleaned analytical layer. RAW expedition profiling is complete.
 ============================================================
